@@ -22,6 +22,13 @@ class PayerSource extends Source[Party] {
   override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Party] = PropertyValue(outputProperty, new Party(inputs.find(p => p.property == PayerId).get.value.asInstanceOf[String]))
 }
 
+class PayeeSource extends Source[Party] {
+  override def inputProperties: Set[Property] = Set(PayeeId)
+  override def outputProperty: Property = PayeeProperty.asInstanceOf[Property]
+
+  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Party] = PropertyValue(outputProperty, new Party(inputs.find(p => p.property == PayeeId).get.value.asInstanceOf[String]))
+}
+
 case object AmountNormalizer extends Normalizer[Double] {
   def outputProperty = Amount
 

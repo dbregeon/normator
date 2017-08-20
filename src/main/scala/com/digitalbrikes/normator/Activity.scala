@@ -62,6 +62,14 @@ class InputSource[T](input : PropertyInput[T]) extends Source[T] {
   override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[T] = PropertyValue(input.property, input.value)
 }
 
+class MissingSource[T](property : Property) extends Source[T] {
+  override def inputProperties: Set[Property] = Set.empty
+
+  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[T] = throw new RuntimeException("Missing source for " + outputProperty)
+
+  override def outputProperty: Property = property
+}
+
 /**
   * Value of a property assigned from the outside.
   * @param property
