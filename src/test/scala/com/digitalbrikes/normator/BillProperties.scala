@@ -4,6 +4,8 @@ import com.digitalbrikes.normator.AmountNormalizer.outputProperty
 import com.digitalbrikes.normator.PayerIdNormalizer.outputProperty
 import com.digitalbrikes.normator.PayerNormalizer.outputProperty
 
+import scala.util.Success
+
 case object Amount extends Property
 case object PayerId extends Property
 case object PayeeId extends Property
@@ -19,44 +21,44 @@ class PayerSource extends Source[Party] {
   override def inputProperties: Set[Property] = Set(PayerId)
   override def outputProperty: Property = PayerProperty.asInstanceOf[Property]
 
-  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Party] = PropertyValue(outputProperty, new Party(inputs.find(p => p.property == PayerId).get.value.asInstanceOf[String]))
+  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Party] = PropertyValue(outputProperty, Success(new Party(inputs.find(p => p.property == PayerId).get.value.asInstanceOf[String])))
 }
 
 class PayeeSource extends Source[Party] {
   override def inputProperties: Set[Property] = Set(PayeeId)
   override def outputProperty: Property = PayeeProperty.asInstanceOf[Property]
 
-  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Party] = PropertyValue(outputProperty, new Party(inputs.find(p => p.property == PayeeId).get.value.asInstanceOf[String]))
+  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Party] = PropertyValue(outputProperty, Success(new Party(inputs.find(p => p.property == PayeeId).get.value.asInstanceOf[String])))
 }
 
 case object AmountNormalizer extends Normalizer[Double] {
   def outputProperty = Amount
 
-  override def normalize(value: Option[PropertyValue[Double]]): PropertyOutput[Double] =  PropertyOutput(outputProperty, value.map(v => v.value).getOrElse(0.0), "Validated!")
+  override def normalize(value: PropertyValue[Double]): PropertyOutput[Double] =  PropertyOutput(outputProperty, value.value.toOption, "Validated!")
 }
 
 case object PayerIdNormalizer extends Normalizer[String] {
   def outputProperty = PayerId
 
-  override def normalize(value: Option[PropertyValue[String]]): PropertyOutput[String] =  PropertyOutput(outputProperty, value.map(v => v.value).getOrElse(""), "Validated!")
+  override def normalize(value: PropertyValue[String]): PropertyOutput[String] =  PropertyOutput(outputProperty, value.value.toOption, "Validated!")
 }
 
 case object PayerNormalizer extends Normalizer[Party] {
   def outputProperty = PayerProperty
 
-  override def normalize(value: Option[PropertyValue[Party]]): PropertyOutput[Party] =  PropertyOutput(outputProperty, value.map(v => v.value).getOrElse(NoParty), "Validated!")
+  override def normalize(value: PropertyValue[Party]): PropertyOutput[Party] =  PropertyOutput(outputProperty, value.value.toOption, "Validated!")
 }
 
 case object PayeeIdNormalizer extends Normalizer[String] {
   def outputProperty = PayeeId
 
-  override def normalize(value: Option[PropertyValue[String]]): PropertyOutput[String] =   PropertyOutput(outputProperty, value.map(v => v.value).getOrElse(""), "Validated!")
+  override def normalize(value: PropertyValue[String]): PropertyOutput[String] =   PropertyOutput(outputProperty, value.value.toOption, "Validated!")
 }
 
 case object PayeeNormalizer extends Normalizer[Party] {
   def outputProperty = PayeeProperty
 
-  override def normalize(value: Option[PropertyValue[Party]]): PropertyOutput[Party] =   PropertyOutput(outputProperty, value.map(v => v.value).getOrElse(NoParty), "Validated!")
+  override def normalize(value: PropertyValue[Party]): PropertyOutput[Party] =   PropertyOutput(outputProperty, value.value.toOption, "Validated!")
 }
 
 

@@ -1,5 +1,7 @@
 package com.digitalbrikes.normator
 
+import scala.util.Try
+
 /**
   * An Activity represents an action to perform from user inputs.
   *
@@ -24,9 +26,7 @@ trait Normalizer[T] {
 
   def outputProperty : Property
 
-  def normalize(value : Option[PropertyValue[T]]) : PropertyOutput[T]
-
-  implicit def asValue(propValue : PropertyValue[T]) : Option[T] = Some(propValue.value)
+  def normalize(value : PropertyValue[T]) : PropertyOutput[T]
 }
 
 /**
@@ -35,8 +35,7 @@ trait Normalizer[T] {
   * @param value
   * @tparam T
   */
-case class PropertyValue[T](property: Property, value: T)
-
+case class PropertyValue[T](property: Property, value: Try[T])
 
 /**
   * A Source provides a property's value from a set of input property values.
@@ -49,18 +48,6 @@ trait Source[T] {
   def resolve(inputs : Set[PropertyValue[_]]) : PropertyValue[T]
 }
 
-/**
-  * Source implicitely created by an input.
-  * @param input
-  * @tparam T
-  */
-class InputSource[T](input : PropertyInput[T]) extends Source[T] {
-  override def inputProperties: Set[Property] = Set.empty[Property]
-
-  override def outputProperty: Property = input.property
-
-  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[T] = PropertyValue(input.property, input.value)
-}
 
 class MissingSource[T](property : Property) extends Source[T] {
   override def inputProperties: Set[Property] = Set.empty
@@ -76,9 +63,7 @@ class MissingSource[T](property : Property) extends Source[T] {
   * @param value
   * @tparam T
   */
-case class PropertyInput[T](property: Property, value: T) {
-  lazy val source : Source[T] = new InputSource[T](this)
-}
+case class PropertyInput[T](property: Property, value: T)
 
 /**
   * Output ot an activity for presentation.
@@ -87,4 +72,4 @@ case class PropertyInput[T](property: Property, value: T) {
   * @param message
   * @tparam T
   */
-case class PropertyOutput[+T](property: Property, value: T, message: String)
+case class PropertyOutput[+T](property: Property, value: Option[T], message: String)

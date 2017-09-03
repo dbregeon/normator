@@ -11,7 +11,7 @@ class MaterializedActivitySpec extends FlatSpec {
   }
 
   "A  MaterializedActivity required inputs " should " not contain a property provided by a node." in {
-    val graph = new ResolutionGraph(Set(new PropertyInput[Double](Amount, 1.0).source))
+    val graph = new ResolutionGraph(Set(new MissingSource[Double](Amount)))
     val materializedActivity = new MaterializedActivity[Bill](graph, Set(AmountNormalizer))
 
     assert(!materializedActivity.requiredInputs.contains(Amount))

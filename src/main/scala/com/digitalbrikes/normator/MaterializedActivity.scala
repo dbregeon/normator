@@ -1,6 +1,6 @@
 package com.digitalbrikes.normator
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
   * A Materialized Activity has an execution graph built from the Activity's definition.
@@ -15,13 +15,21 @@ class MaterializedActivity[T](graph : ResolutionGraph, normalizers : Set[Normali
   def requiredInputs: Set[Property] = graph.inputs ++ normalizers.map(n => n.outputProperty).diff(graph.outputs)
 
   // TODO Should build an executable graph that resolves the normalized properties from a new set of inputs
+  val materializedGraph : MaterializedGraph = new MaterializedGraph
 
   /**
     * Computes a Set of outputs from inputs to display to the user.
+    *
     * @param inputs the user's inputs.
     * @return values that should be presented to the user.
     */
-  def update(inputs: Set[PropertyInput[_]]): Set[PropertyOutput[_]] = ???
+  def update(inputs: Set[PropertyInput[_]]) : Set[PropertyOutput[_]] = {
+    materializedGraph.update(inputs)
+    materializedGraph.recompute(graph.outputs).map(value => value.value match {
+      case Success(v) => PropertyOutput(value.property, Some(v), "Valid Value")
+      case Failure(t) => PropertyOutput(value.property, None, t.getLocalizedMessage)
+    })
+  }
 
   /**
     * Performs the activity from the given inputs.
