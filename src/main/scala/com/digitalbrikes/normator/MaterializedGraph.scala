@@ -7,7 +7,7 @@ import scala.util.{Failure, Success}
   */
 class MaterializedGraph(val nodes : Set[Source[_]]) {
 
-  def buildGraph(nodes: Set[Source[_]]): (Map[Property,InputNode[_]],Map[MaterializedNode[_], Set[Node[_]]]) = {
+  private def buildGraph(nodes: Set[Source[_]]): (Map[Property,InputNode[_]],Map[MaterializedNode[_], Set[Node[_]]]) = {
     val propertyNodes = nodes.map(source => (source.outputProperty, MaterializedNode(source))).toMap[Property, MaterializedNode[_]]
     val inputsMap = nodes.flatMap(source => source.inputProperties.filter(p => !propertyNodes.isDefinedAt(p))).map(p => (p, InputNode(p))).toMap
     val sourcesMap = nodes.map(source => (propertyNodes(source.outputProperty), source.inputProperties.map(p => propertyNodes.get(p).orElse(inputsMap.get(p)).get).toSet[Node[_]])).toMap[MaterializedNode[_], Set[Node[_]]]
@@ -15,15 +15,16 @@ class MaterializedGraph(val nodes : Set[Source[_]]) {
     (inputsMap, sourcesMap)
   }
 
-  val (inputNodes, sourceNodes) : (Map[Property, InputNode[_]], Map[MaterializedNode[_], Set[Node[_]]]) = buildGraph(nodes)
+  private val (inputNodes, sourceNodes) : (Map[Property, InputNode[_]], Map[MaterializedNode[_], Set[Node[_]]]) = buildGraph(nodes)
 
-  def inputs: Set[Property] = inputNodes.keySet
-
-  def update(inputs: Set[PropertyInput[_]]): Unit = {
+  private def update(inputs: Set[PropertyInput[_]]): Unit = {
     inputs.foreach(input => inputNodes.get(input.property).foreach(node => node.update(input.asInstanceOf)))
   }
 
-  def recompute(): Set[PropertyValue[_]] = {
+  def inputs: Set[Property] = inputNodes.keySet
+
+  def recompute(inputs: Set[PropertyInput[_]]): Set[PropertyValue[_]] = {
+    update(inputs)
     sourceNodes.keys.map(node => node.recompute()).toSet
   }
 

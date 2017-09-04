@@ -8,7 +8,8 @@ import scala.util.{Failure, Success, Try}
   * @tparam T the type of the outcome when performing the activity.
   */
 class MaterializedActivity[T](sources : Set[Source[_]], normalizers : Set[Normalizer[_]]) {
-  val materializedGraph : MaterializedGraph = new MaterializedGraph(sources)
+  private val materializedGraph = new MaterializedGraph(sources)
+  private val normalizersMap = normalizers.map(n => (n.outputProperty, n)).toMap[Property, Normalizer[_]]
 
   /**
     * The inputs necessary for the activity as determined by analyzing the actvity's property graph.
@@ -23,11 +24,7 @@ class MaterializedActivity[T](sources : Set[Source[_]], normalizers : Set[Normal
     * @return values that should be presented to the user.
     */
   def update(inputs: Set[PropertyInput[_]]) : Set[PropertyOutput[_]] = {
-    materializedGraph.update(inputs)
-    materializedGraph.recompute().map(value => value.value match {
-      case Success(v) => PropertyOutput(value.property, Some(v), "Valid Value")
-      case Failure(t) => PropertyOutput(value.property, None, t.getLocalizedMessage)
-    })
+    materializedGraph.recompute(inputs).map(value => normalizersMap(value.property).normalize(value.asInstanceOf))
   }
 
   /**
