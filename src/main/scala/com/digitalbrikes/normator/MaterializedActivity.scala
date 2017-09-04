@@ -7,15 +7,14 @@ import scala.util.{Failure, Success, Try}
   *
   * @tparam T the type of the outcome when performing the activity.
   */
-class MaterializedActivity[T](graph : ResolutionGraph, normalizers : Set[Normalizer[_]]) {
+class MaterializedActivity[T](sources : Set[Source[_]], normalizers : Set[Normalizer[_]]) {
+  val materializedGraph : MaterializedGraph = new MaterializedGraph(sources)
+
   /**
     * The inputs necessary for the activity as determined by analyzing the actvity's property graph.
     * @return the properties for which an input need to be provided.
     */
-  def requiredInputs: Set[Property] = graph.inputs ++ normalizers.map(n => n.outputProperty).diff(graph.outputs)
-
-  // TODO Should build an executable graph that resolves the normalized properties from a new set of inputs
-  val materializedGraph : MaterializedGraph = new MaterializedGraph
+  def requiredInputs: Set[Property] = materializedGraph.inputs ++ normalizers.map(n => n.outputProperty).diff(sources.map(s => s.outputProperty))
 
   /**
     * Computes a Set of outputs from inputs to display to the user.
@@ -25,7 +24,7 @@ class MaterializedActivity[T](graph : ResolutionGraph, normalizers : Set[Normali
     */
   def update(inputs: Set[PropertyInput[_]]) : Set[PropertyOutput[_]] = {
     materializedGraph.update(inputs)
-    materializedGraph.recompute(graph.outputs).map(value => value.value match {
+    materializedGraph.recompute().map(value => value.value match {
       case Success(v) => PropertyOutput(value.property, Some(v), "Valid Value")
       case Failure(t) => PropertyOutput(value.property, None, t.getLocalizedMessage)
     })

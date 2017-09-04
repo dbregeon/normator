@@ -11,9 +11,7 @@ trait Activity[T] {
   def resolvers : Set[Source[_]]
   def normalizers : Set[Normalizer[_]]
 
-  val resolutionGraph = new ResolutionGraph(resolvers)
-
-  def materialize() : MaterializedActivity[T] = new MaterializedActivity[T](resolutionGraph, normalizers)
+  def materialize() : MaterializedActivity[T] = new MaterializedActivity[T](resolvers, normalizers)
 }
 
 /**
