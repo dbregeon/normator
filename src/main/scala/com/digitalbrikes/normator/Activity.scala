@@ -46,6 +46,7 @@ trait Source[T] {
   def resolve(inputs : Set[PropertyValue[_]]) : PropertyValue[T]
 }
 
+case class MissingInputException(message : String) extends RuntimeException(message)
 
 class MissingSource[T](property : Property) extends Source[T] {
   override def inputProperties: Set[Property] = Set.empty

@@ -18,14 +18,15 @@ class MaterializedGraph(val nodes : Set[Source[_]]) {
   private val (inputNodes, sourceNodes) : (Map[Property, InputNode[_]], Map[MaterializedNode[_], Set[Node[_]]]) = buildGraph(nodes)
 
   private def update(inputs: Set[PropertyInput[_]]): Unit = {
-    inputs.foreach(input => inputNodes.get(input.property).foreach(node => node.update(input.asInstanceOf)))
+    def update[T] = (input : PropertyInput[T]) => inputNodes.get(input.property).asInstanceOf[Option[InputNode[T]]].foreach((node : InputNode[T]) => node.update(input))
+    inputs.foreach(input => update(input))
   }
 
   def inputs: Set[Property] = inputNodes.keySet
 
   def recompute(inputs: Set[PropertyInput[_]]): Set[PropertyValue[_]] = {
     update(inputs)
-    sourceNodes.keys.map(node => node.recompute()).toSet
+    inputNodes.values.map(node => node.recompute()).toSet ++ sourceNodes.keys.map(node => node.recompute()).toSet
   }
 
   trait Node[T] {
@@ -33,7 +34,7 @@ class MaterializedGraph(val nodes : Set[Source[_]]) {
   }
 
   case class InputNode[T](property : Property) extends Node[T] {
-    var currentOutput : PropertyValue[T] = new PropertyValue[T](property, Failure(InsufficientInputException()))
+    var currentOutput : PropertyValue[T] = new PropertyValue[T](property, Failure(InsufficientInputException))
 
 
     def update(input : PropertyInput[T]): Unit = currentOutput = new PropertyValue[T](property, Success(input.value))
@@ -43,13 +44,13 @@ class MaterializedGraph(val nodes : Set[Source[_]]) {
 
   case class MaterializedNode[T](source : Source[T]) extends Node[T] {
     var previousInputs : Set[PropertyValue[_]] = Set.empty
-    var currentOutput : PropertyValue[T] = new PropertyValue[T](source.outputProperty, Failure(InsufficientInputException()))
+    var currentOutput : PropertyValue[T] = new PropertyValue[T](source.outputProperty, Failure(InsufficientInputException))
 
     def recompute() : PropertyValue[T] = {
       val inputProperties = sourceNodes(this).map(node => node.recompute())
-      if (previousInputs.diff(inputProperties.asInstanceOf).nonEmpty) {
-        previousInputs = inputProperties.asInstanceOf
-        currentOutput = source.resolve(inputProperties.asInstanceOf)
+      if (inputProperties.diff(previousInputs).nonEmpty) {
+        previousInputs = inputProperties
+        currentOutput = source.resolve(inputProperties)
       }
       currentOutput
     }
@@ -57,4 +58,4 @@ class MaterializedGraph(val nodes : Set[Source[_]]) {
 
 }
 
-case class InsufficientInputException() extends Exception
+case object InsufficientInputException extends RuntimeException

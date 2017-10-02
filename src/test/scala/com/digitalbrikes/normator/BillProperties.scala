@@ -1,18 +1,14 @@
 package com.digitalbrikes.normator
 
-import com.digitalbrikes.normator.AmountNormalizer.outputProperty
-import com.digitalbrikes.normator.PayerIdNormalizer.outputProperty
-import com.digitalbrikes.normator.PayerNormalizer.outputProperty
-
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 case object Amount extends Property
 case object PayerId extends Property
 case object PayeeId extends Property
 
-class Party(id : String)
+case class Party(id : String)
 object NoParty extends Party("None")
-class Bill(payer: Party, payee: Party, amount: Double)
+case class Bill(payer: Party, payee: Party, amount: Double)
 
 case object PayerProperty extends Property
 case object PayeeProperty extends Property
@@ -21,14 +17,17 @@ class PayerSource extends Source[Party] {
   override def inputProperties: Set[Property] = Set(PayerId)
   override def outputProperty: Property = PayerProperty.asInstanceOf[Property]
 
-  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Party] = PropertyValue(outputProperty, Success(new Party(inputs.find(p => p.property == PayerId).get.value.asInstanceOf[String])))
+  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Party] = inputs.find(p => p.property == PayerId).get.value match {
+    case Success(value) => PropertyValue(outputProperty, Success(Party(value.asInstanceOf[String])))
+    case Failure(error) => PropertyValue(outputProperty, Failure(MissingInputException("PayerId is missing")))
+  }
 }
 
 class PayeeSource extends Source[Party] {
   override def inputProperties: Set[Property] = Set(PayeeId)
   override def outputProperty: Property = PayeeProperty.asInstanceOf[Property]
 
-  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Party] = PropertyValue(outputProperty, Success(new Party(inputs.find(p => p.property == PayeeId).get.value.asInstanceOf[String])))
+  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Party] = PropertyValue(outputProperty, Success(Party(inputs.find(p => p.property == PayeeId).get.value.get.asInstanceOf[String])))
 }
 
 case object AmountNormalizer extends Normalizer[Double] {
