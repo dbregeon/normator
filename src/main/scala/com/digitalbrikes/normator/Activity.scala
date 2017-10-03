@@ -72,3 +72,6 @@ case class PropertyInput[T](property: Property, value: T)
   * @tparam T
   */
 case class PropertyOutput[+T](property: Property, value: Option[T], message: String)
+
+// TODO Add the execution context to the activity
+// TODO ensure asynchronous execution.

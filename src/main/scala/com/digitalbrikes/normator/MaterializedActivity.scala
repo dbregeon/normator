@@ -24,7 +24,9 @@ class MaterializedActivity[T](sources : Set[Source[_]], normalizers : Set[Normal
     * @return values that should be presented to the user.
     */
   def update(inputs: Set[PropertyInput[_]]) : Set[PropertyOutput[_]] = {
-    materializedGraph.recompute(inputs).map(value => normalizersMap(value.property).normalize(value.asInstanceOf))
+    def normalize[X] = (value : PropertyValue[X]) => normalizersMap.get(value.property).map(normalizer => normalizer.asInstanceOf[Normalizer[X]].normalize(value))
+
+    materializedGraph.recompute(inputs).flatMap(value => normalize(value))
   }
 
   /**

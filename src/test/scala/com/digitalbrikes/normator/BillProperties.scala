@@ -5,6 +5,7 @@ import scala.util.{Failure, Success}
 case object Amount extends Property
 case object PayerId extends Property
 case object PayeeId extends Property
+case object BillProperty extends Property
 
 case class Party(id : String)
 object NoParty extends Party("None")
@@ -30,14 +31,27 @@ class PayeeSource extends Source[Party] {
   override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Party] = PropertyValue(outputProperty, Success(Party(inputs.find(p => p.property == PayeeId).get.value.get.asInstanceOf[String])))
 }
 
+class BillSource extends Source[Bill] {
+    override def inputProperties: Set[Property] = Set(PayerProperty, PayeeProperty, Amount)
+    override def outputProperty: Property = BillProperty.asInstanceOf[Property]
+
+    override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Bill] = PropertyValue(
+      outputProperty,
+      Success(Bill(
+        inputs.find(p => p.property == PayerProperty).get.value.get.asInstanceOf[Party],
+        inputs.find(p => p.property == PayeeProperty).get.value.get.asInstanceOf[Party],
+        inputs.find(p => p.property == Amount).get.value.get.asInstanceOf[Double]
+      )))
+}
+
 case object AmountNormalizer extends Normalizer[Double] {
-  def outputProperty = Amount
+  def outputProperty: Amount.type = Amount
 
   override def normalize(value: PropertyValue[Double]): PropertyOutput[Double] =  PropertyOutput(outputProperty, value.value.toOption, "Validated!")
 }
 
 case object PayerIdNormalizer extends Normalizer[String] {
-  def outputProperty = PayerId
+  def outputProperty: PayerId.type = PayerId
 
   override def normalize(value: PropertyValue[String]): PropertyOutput[String] =  PropertyOutput(outputProperty, value.value.toOption, "Validated!")
 }
@@ -60,23 +74,15 @@ case object PayeeNormalizer extends Normalizer[Party] {
   override def normalize(value: PropertyValue[Party]): PropertyOutput[Party] =   PropertyOutput(outputProperty, value.value.toOption, "Validated!")
 }
 
+case object BillNormalizer extends Normalizer[Bill] {
+  def outputProperty = BillProperty
+
+  override def normalize(value: PropertyValue[Bill]): PropertyOutput[Bill] =   PropertyOutput(outputProperty, value.value.toOption, "Validated!")
+}
 
 
 class CreateBillActivity extends Activity[Bill] {
-  val resolvers : Set[Source[_]] = Set(new PayerSource)
+  val resolvers : Set[Source[_]] = Set(new PayerSource, new PayeeSource, new BillSource)
 
-  val normalizers : Set[Normalizer[_]] = Set(AmountNormalizer, PayerNormalizer, PayeeNormalizer)
-
-  val output: Set[Property] = Set(PayerProperty, PayeeProperty, Amount)
-
-  override def materialize() = ???
-
-
-//  override def update(inputs: Set[PropertyInput[_]]): Set[PropertyOutput[_]] = {
-//    val values = inputs.map(i => i.source.resolve(Set.empty))
-//    val outProperties
-//
-//    val valuesMap : Map[Property, PropertyValue[_]] = sources.map(s => (s.outputProperty, s.resolve(values))).toMap
-//    normalizers.map(n => n.normalize(valuesMap(n.property).asInstanceOf))
-//  }
+  val normalizers : Set[Normalizer[_]] = Set(BillNormalizer, PayerNormalizer, PayeeNormalizer)
 }

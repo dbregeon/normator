@@ -33,22 +33,9 @@ class MaterializedGraphSpec extends FlatSpec {
   }
 
   "A MaterializedGraph recompute " should " provide a value for the non source ouputs." in {
-    case object BillProperty extends Property
     val source1 = new PayerSource
     val source2 = new PayeeSource
-    val source3 = new Source[Bill] {
-      override def inputProperties: Set[Property] = Set(PayerProperty, PayeeProperty, Amount)
-      override def outputProperty: Property = BillProperty.asInstanceOf[Property]
-
-      override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[Bill] = PropertyValue(
-        outputProperty,
-        Success(Bill(
-          inputs.find(p => p.property == PayerProperty).get.value.get.asInstanceOf[Party],
-          inputs.find(p => p.property == PayeeProperty).get.value.get.asInstanceOf[Party],
-          inputs.find(p => p.property == Amount).get.value.get.asInstanceOf[Double]
-        )))
-
-    }
+    val source3 = new BillSource
     val graph = new MaterializedGraph(Set(source1, source2, source3))
 
     val set = graph.recompute(Set(
@@ -62,7 +49,6 @@ class MaterializedGraphSpec extends FlatSpec {
       new PropertyValue[String](PayeeId, Success("Test Payee")),
       new PropertyValue[Party](PayerProperty, Success(Party("Test Payer"))),
       new PropertyValue[Party](PayeeProperty, Success(Party("Test Payee"))),
-      new PropertyValue[Double](Amount, Success(30.0)),
       new PropertyValue[Bill](BillProperty, Success(Bill(Party("Test Payer"), Party("Test Payee"), 30.0)))
     )))
   }
