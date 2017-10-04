@@ -6,25 +6,27 @@ import scala.util.Try
   * An Activity represents an action to perform from user inputs.
   *
   * @tparam T the type of the outcome when performing the activity.
+  * @tparam C the type of the context this activity should take place into.
   */
-trait Activity[T] {
-  def resolvers : Set[Source[_]]
-  def normalizers : Set[Normalizer[_]]
+trait Activity[T, C] {
+  def resolvers : Set[Source[_, C]]
+  def normalizers : Set[Normalizer[_, C]]
 
-  def materialize() : MaterializedActivity[T] = new MaterializedActivity[T](resolvers, normalizers)
+  def materialize() : MaterializedActivity[T, C] = new MaterializedActivity[T, C](resolvers, normalizers)
 }
 
 /**
   * A Normalizer takes a value for a property previously computed (either from direct input or from a Source)
   * and builds an output suitable for presentation.
   * @tparam T the type of the property to output.
+  * @tparam C the type of the context this normalizer can use.
   */
-trait Normalizer[T] {
+trait Normalizer[T, C] {
   def inputProperties : Set[Property] = Set(outputProperty)
 
   def outputProperty : Property
 
-  def normalize(value : PropertyValue[T]) : PropertyOutput[T]
+  def normalize(value : PropertyValue[T])(implicit context: C) : PropertyOutput[T]
 }
 
 /**
@@ -37,21 +39,23 @@ case class PropertyValue[T](property: Property, value: Try[T])
 
 /**
   * A Source provides a property's value from a set of input property values.
-  * @tparam T
+  * @tparam T the type of value this source produces for the output property.
+  * @tparam C the type of the context this source can use.
   */
-trait Source[T] {
+trait Source[T, C] {
   def inputProperties : Set[Property]
   def outputProperty : Property
 
-  def resolve(inputs : Set[PropertyValue[_]]) : PropertyValue[T]
+  def resolve(inputs : Set[PropertyValue[_]])(implicit context : C) : PropertyValue[T]
 }
 
 case class MissingInputException(message : String) extends RuntimeException(message)
 
-class MissingSource[T](property : Property) extends Source[T] {
+class MissingSource[T, C](property : Property) extends Source[T, C] {
   override def inputProperties: Set[Property] = Set.empty
 
-  override def resolve(inputs: Set[PropertyValue[_]]): PropertyValue[T] = throw new RuntimeException("Missing source for " + outputProperty)
+  override def resolve(inputs: Set[PropertyValue[_]])(implicit context : C): PropertyValue[T] =
+    throw new RuntimeException("Missing source for " + outputProperty)
 
   override def outputProperty: Property = property
 }
@@ -73,5 +77,5 @@ case class PropertyInput[T](property: Property, value: T)
   */
 case class PropertyOutput[+T](property: Property, value: Option[T], message: String)
 
-// TODO Add the execution context to the activity
 // TODO ensure asynchronous execution.
+// TODO improve error handling (e.g. collect all the missing inputs for reporting and such).

@@ -1,15 +1,16 @@
 package com.digitalbrikes.normator
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 /**
   * A Materialized Activity has an execution graph built from the Activity's definition.
   *
   * @tparam T the type of the outcome when performing the activity.
+  * @tparam C the type of the context this activity can be materialized in.
   */
-class MaterializedActivity[T](sources : Set[Source[_]], normalizers : Set[Normalizer[_]]) {
+class MaterializedActivity[T, C](sources : Set[Source[_, C]], normalizers : Set[Normalizer[_, C]]) {
   private val materializedGraph = new MaterializedGraph(sources)
-  private val normalizersMap = normalizers.map(n => (n.outputProperty, n)).toMap[Property, Normalizer[_]]
+  private val normalizersMap = normalizers.map(n => (n.outputProperty, n)).toMap[Property, Normalizer[_, C]]
 
   /**
     * The inputs necessary for the activity as determined by analyzing the actvity's property graph.
@@ -23,8 +24,8 @@ class MaterializedActivity[T](sources : Set[Source[_]], normalizers : Set[Normal
     * @param inputs the user's inputs.
     * @return values that should be presented to the user.
     */
-  def update(inputs: Set[PropertyInput[_]]) : Set[PropertyOutput[_]] = {
-    def normalize[X] = (value : PropertyValue[X]) => normalizersMap.get(value.property).map(normalizer => normalizer.asInstanceOf[Normalizer[X]].normalize(value))
+  def update(inputs: Set[PropertyInput[_]])(implicit context : C) : Set[PropertyOutput[_]] = {
+    def normalize[X] = (value : PropertyValue[X]) => normalizersMap.get(value.property).map(normalizer => normalizer.asInstanceOf[Normalizer[X, C]].normalize(value))
 
     materializedGraph.recompute(inputs).flatMap(value => normalize(value))
   }
@@ -34,6 +35,6 @@ class MaterializedActivity[T](sources : Set[Source[_]], normalizers : Set[Normal
     * @param inputs the user's inputs.
     * @return the outcome of the activity or an error when the activity failed.
     */
-  def perform(inputs: Set[PropertyInput[_]]): Try[T] = ???
+  def perform(inputs: Set[PropertyInput[_]])(implicit context : C): Try[T] = ???
 }
 

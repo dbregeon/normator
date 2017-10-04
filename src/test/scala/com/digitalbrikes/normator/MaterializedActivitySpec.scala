@@ -2,17 +2,17 @@ package com.digitalbrikes.normator
 
 import org.scalatest.FlatSpec
 
-import scala.util.Success
-
 class MaterializedActivitySpec extends FlatSpec {
+  implicit val context : BillContext = new BillContext
+
   "A MaterializedActivity required inputs " should " contain the properties that cannot be provided by a node." in {
-    val materializedActivity = new MaterializedActivity[Bill](Set(new PayerSource), Set(AmountNormalizer))
+    val materializedActivity = new MaterializedActivity[Bill, BillContext](Set(new PayerSource), Set(AmountNormalizer))
 
     assert(materializedActivity.requiredInputs.contains(Amount))
   }
 
   "A  MaterializedActivity required inputs " should " not contain a property provided by a node." in {
-    val materializedActivity = new MaterializedActivity[Bill](Set(new MissingSource[Double](Amount)), Set(AmountNormalizer))
+    val materializedActivity = new MaterializedActivity[Bill, BillContext](Set(new MissingSource[Double, BillContext](Amount)), Set(AmountNormalizer))
 
     assert(!materializedActivity.requiredInputs.contains(Amount))
   }
@@ -22,7 +22,7 @@ class MaterializedActivitySpec extends FlatSpec {
     val source2 = new PayeeSource
     val source3 = new BillSource
 
-    val materializedActivity = new MaterializedActivity[Bill](Set(source1, source2, source3), Set(PayerNormalizer, PayeeNormalizer, BillNormalizer))
+    val materializedActivity = new MaterializedActivity[Bill, BillContext](Set(source1, source2, source3), Set(PayerNormalizer, PayeeNormalizer, BillNormalizer))
 
     assert(materializedActivity.update(Set(
       new PropertyInput[String](PayerId, "Test Payer"),
