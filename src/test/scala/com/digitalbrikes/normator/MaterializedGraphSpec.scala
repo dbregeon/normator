@@ -2,10 +2,13 @@ package com.digitalbrikes.normator
 
 import org.scalatest.FlatSpec
 
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success}
 
 class MaterializedGraphSpec extends FlatSpec {
   implicit val context : BillContext = new BillContext
+  implicit val executionContext : ExecutionContext = ExecutionContext.global
 
   "A MaterializedGraph inputs " should " contains the sources inputs." in {
     val source1 = new PayerSource
@@ -27,7 +30,7 @@ class MaterializedGraphSpec extends FlatSpec {
     val source1 = new PayerSource
     val graph = new MaterializedGraph[BillContext](Set(source1))
 
-    val set = graph.recompute(Set(new PropertyInput[String](PayerId, "Test Payer")))
+    val set = Await.result(graph.recompute(Set(new PropertyInput[String](PayerId, "Test Payer"))), Duration(10, "seconds"))
     assert(set.equals(Set(
       new PropertyValue[String](PayerId, Success("Test Payer")),
       new PropertyValue[Party](PayerProperty, Success(Party("Test Payer")))
@@ -40,11 +43,11 @@ class MaterializedGraphSpec extends FlatSpec {
     val source3 = new BillSource
     val graph = new MaterializedGraph[BillContext](Set(source1, source2, source3))
 
-    val set = graph.recompute(Set(
+    val set = Await.result(graph.recompute(Set(
       new PropertyInput[String](PayerId, "Test Payer"),
       new PropertyInput[String](PayeeId, "Test Payee"),
       new PropertyInput[Double](Amount, 30.0)
-    ))
+    )), Duration(10, "seconds"))
     assert(set.equals(Set(
       new PropertyValue[Double](Amount, Success(30.0)),
       new PropertyValue[String](PayerId, Success("Test Payer")),
@@ -59,7 +62,7 @@ class MaterializedGraphSpec extends FlatSpec {
     val source1 = new PayerSource
     val graph = new MaterializedGraph[BillContext](Set(source1))
 
-    val set = graph.recompute(Set(new PropertyInput[String](PayeeId, "Test Payee")))
+    val set = Await.result(graph.recompute(Set(new PropertyInput[String](PayeeId, "Test Payee"))), Duration(10, "seconds"))
     assert(set.equals(Set(
       new PropertyValue[Party](PayerId, Failure(InsufficientInputException)),
       new PropertyValue[Party](PayerProperty, Failure(MissingInputException("PayerId is missing")))

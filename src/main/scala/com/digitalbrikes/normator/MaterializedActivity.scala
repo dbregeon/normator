@@ -1,5 +1,6 @@
 package com.digitalbrikes.normator
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 /**
@@ -24,10 +25,10 @@ class MaterializedActivity[T, C](sources : Set[Source[_, C]], normalizers : Set[
     * @param inputs the user's inputs.
     * @return values that should be presented to the user.
     */
-  def update(inputs: Set[PropertyInput[_]])(implicit context : C) : Set[PropertyOutput[_]] = {
+  def update(inputs: Set[PropertyInput[_]])(implicit context : C, executionContext: ExecutionContext) : Future[Set[PropertyOutput[_]]] = {
     def normalize[X] = (value : PropertyValue[X]) => normalizersMap.get(value.property).map(normalizer => normalizer.asInstanceOf[Normalizer[X, C]].normalize(value))
 
-    materializedGraph.recompute(inputs).flatMap(value => normalize(value))
+    materializedGraph.recompute(inputs).map(values => values.flatMap(value => normalize(value)))
   }
 
   /**

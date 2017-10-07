@@ -1,5 +1,7 @@
 package com.digitalbrikes.normator
 
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
 /**
@@ -18,37 +20,67 @@ class MaterializedGraph[C](val nodes : Set[Source[_, C]]) {
 
   private val (inputNodes, sourceNodes) : (Map[Property, InputNode[_]], Map[MaterializedNode[_], Set[Node[_]]]) = buildGraph(nodes)
 
-  private def update(inputs: Set[PropertyInput[_]])(implicit context : C): Unit = {
-    def update[T] = (input : PropertyInput[T]) => inputNodes.get(input.property).asInstanceOf[Option[InputNode[T]]].foreach((node : InputNode[T]) => node.update(input))
+  private def update(inputs: Set[PropertyInput[_]])(implicit context : C, executionContext: ExecutionContext): Unit = {
+    def update[T] = (input : PropertyInput[T]) => inputNodes.get(input.property).asInstanceOf[Option[InputNode[T]]].foreach((node : InputNode[T]) => {
+      node.update(input)
+    })
     inputs.foreach(input => update(input))
   }
 
   def inputs: Set[Property] = inputNodes.keySet
 
-  def recompute(inputs: Set[PropertyInput[_]])(implicit context : C): Set[PropertyValue[_]] = {
+  def recompute(inputs: Set[PropertyInput[_]])(implicit context : C, execution : ExecutionContext): Future[Set[PropertyValue[_]]] = {
     update(inputs)
-    inputNodes.values.map(node => node.recompute()).toSet ++ sourceNodes.keys.map(node => node.recompute()).toSet
+    sourceNodes.keys.foreach(node => node.makePromise())
+    sourceNodes.keys.foreach(node => node.recompute())
+    Future.sequence(promisedFutures(inputNodes.values) ++ promisedFutures(sourceNodes.keys))
   }
+
+  private def promisedFutures(nodes : Iterable[Node[_]]): Set[Future[PropertyValue[_]]] =
+    nodes.map(node => node.promisedFuture).toSet
 
   trait Node[T] {
-    def recompute()(implicit context : C) : PropertyValue[T]
+    def promise : Promise[PropertyValue[T]]
+
+    def compute()(implicit context : C) : PropertyValue[T]
+
+    def promisedFuture : Future[PropertyValue[T]] = promise.future
+
+    def outputProperty : Property
   }
 
-  case class InputNode[T](property : Property) extends Node[T] {
-    var currentOutput : PropertyValue[T] = new PropertyValue[T](property, Failure(InsufficientInputException))
+  case class InputNode[T](outputProperty : Property) extends Node[T] {
+    var currentOutput : PropertyValue[T] = new PropertyValue[T](outputProperty, Failure(InsufficientInputException))
 
+    private var _promise : Promise[PropertyValue[T]] = Promise.successful(currentOutput)
 
-    def update(input : PropertyInput[T])(implicit context : C): Unit = currentOutput = new PropertyValue[T](property, Success(input.value))
+    override def promise: Promise[PropertyValue[T]] = _promise
 
-    override def recompute()(implicit context : C): PropertyValue[T] = currentOutput
+    def update(input : PropertyInput[T])(implicit context : C): Unit = {
+      currentOutput = new PropertyValue[T](outputProperty, Success(input.value))
+      _promise = Promise.successful(currentOutput)
+    }
+
+    override def compute()(implicit context : C): PropertyValue[T] = currentOutput
   }
 
   case class MaterializedNode[T](source : Source[T, C]) extends Node[T] {
-    var previousInputs : Set[PropertyValue[_]] = Set.empty
-    var currentOutput : PropertyValue[T] = new PropertyValue[T](source.outputProperty, Failure(InsufficientInputException))
+    private var previousInputs : Set[PropertyValue[_]] = Set.empty
+    private var currentOutput : PropertyValue[T] = new PropertyValue[T](outputProperty, Failure(InsufficientInputException))
+    private var _promise : Promise[PropertyValue[T]] = Promise.successful(currentOutput)
 
-    def recompute()(implicit context : C) : PropertyValue[T] = {
-      val inputProperties = sourceNodes(this).map(node => node.recompute())
+    override def promise: Promise[PropertyValue[T]] = _promise
+
+    override def outputProperty: Property = source.outputProperty
+
+    def makePromise() : Unit = _promise =  Promise[PropertyValue[T]]()
+
+    def recompute()(implicit context : C, execution : ExecutionContext) : Unit = {
+      promise.completeWith(Future(compute()))
+    }
+
+    def compute()(implicit context : C) : PropertyValue[T] = {
+      val inputProperties = sourceNodes(this).map(node => Await.result(node.promisedFuture, Duration(10, "seconds")))
       if (inputProperties.diff(previousInputs).nonEmpty) {
         previousInputs = inputProperties
         currentOutput = source.resolve(inputProperties)
