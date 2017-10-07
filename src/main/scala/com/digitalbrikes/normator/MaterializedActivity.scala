@@ -17,7 +17,8 @@ class MaterializedActivity[T, C](sources : Set[Source[_, C]], normalizers : Set[
     * The inputs necessary for the activity as determined by analyzing the actvity's property graph.
     * @return the properties for which an input need to be provided.
     */
-  def requiredInputs: Set[Property] = materializedGraph.inputs ++ normalizers.map(n => n.outputProperty).diff(sources.map(s => s.outputProperty))
+  def requiredInputs: Set[Property] =
+    materializedGraph.inputs ++ normalizers.map(n => n.outputProperty).diff(sources.map(s => s.outputProperty))
 
   /**
     * Computes a Set of outputs from inputs to display to the user.
@@ -25,8 +26,11 @@ class MaterializedActivity[T, C](sources : Set[Source[_, C]], normalizers : Set[
     * @param inputs the user's inputs.
     * @return values that should be presented to the user.
     */
-  def update(inputs: Set[PropertyInput[_]])(implicit context : C, executionContext: ExecutionContext) : Future[Set[PropertyOutput[_]]] = {
-    def normalize[X] = (value : PropertyValue[X]) => normalizersMap.get(value.property).map(normalizer => normalizer.asInstanceOf[Normalizer[X, C]].normalize(value))
+  def update(inputs: Set[PropertyInput[_]])
+            (implicit context : C, executionContext: ExecutionContext) : Future[Set[PropertyOutput[_]]] = {
+    def normalize[X](value : PropertyValue[X]) =
+      normalizersMap.get(value.property)
+        .map(normalizer => normalizer.asInstanceOf[Normalizer[X, C]].normalize(value))
 
     materializedGraph.recompute(inputs).map(values => values.flatMap(value => normalize(value)))
   }
