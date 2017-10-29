@@ -77,4 +77,5 @@ case class PropertyInput[T](property: Property, value: T)
   */
 case class PropertyOutput[+T](property: Property, value: Option[T], message: String)
 
+// TODO implement perform.
 // TODO improve error handling (e.g. collect all the missing inputs for reporting and such).
